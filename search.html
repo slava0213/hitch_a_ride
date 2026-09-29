@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Поиск попутчиков</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header><h1>Поиск попутчиков</h1></header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html">Поездки</a></li>
+      <li><a href="create-trip.html">Создать поездку</a></li>
+      <li><a href="search.html" class="active">Поиск</a></li>
+      <li><a href="chat.html">Чат</a></li>
+      <li><a href="profile.html">Профиль</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <form id="search-form">
+      <label>Откуда</label>
+      <input name="from" placeholder="Москва" />
+
+      <label>Куда</label>
+      <input name="to" placeholder="Санкт-Петербург" />
+
+      <label>Дата</label>
+      <input type="date" name="date" />
+
+      <button type="submit">Найти</button>
+      <button type="button" class="secondary" onclick="resetSearch()">Сбросить</button>
+    </form>
+
+    <h2>Результаты</h2>
+    <div id="results"></div>
+  </main>
+
+  <footer><p>© 2025 Сервис поиска попутчиков</p></footer>
+
+  <script src="js/storage.js"></script>
+  <script src="js/trips.js"></script>
+  <script>
+    const results = document.getElementById('results');
+    renderTripList(results);
+
+    document.getElementById('search-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      renderTripList(results, {
+        from: f.get('from'),
+        to: f.get('to'),
+        date: f.get('date'),
+      });
+    });
+
+    function resetSearch() {
+      document.getElementById('search-form').reset();
+      renderTripList(results);
+    }
+  </script>
+</body>
+</html>
