@@ -39,11 +39,14 @@
       <label>Цена за место, ₽</label>
       <input type="number" name="price" min="0" value="1000" required />
 
+      <label>Имя водителя</label>
+      <input name="driver" required />
+
       <label>Автомобиль</label>
       <input name="car" placeholder="Например, Kia Rio" />
 
       <label>Комментарий</label>
-      <textarea name="comment" rows="3" placeholder="Детали поездки, багаж, остановки..."></textarea>
+      <textarea name="comment" rows="3" placeholder="Детали поездки..."></textarea>
 
       <button type="submit">Опубликовать поездку</button>
     </form>
@@ -53,30 +56,29 @@
 
   <script src="js/storage.js"></script>
   <script>
-    document.getElementById('trip-form').addEventListener('submit', e => {
+    document.getElementById('trip-form').addEventListener('submit', async e => {
       e.preventDefault();
       const f = new FormData(e.target);
-      const trips = DB.get('trips');
-      const profile = DB.get('profile');
+      const data = {};
+      for (const [k, v] of f.entries()) data[k] = v;
+      data.seats = Number(data.seats);
+      data.taken = 0;
+      data.price = Number(data.price);
 
-      trips.push({
-        id: Date.now(),
-        from: f.get('from'),
-        to: f.get('to'),
-        date: f.get('date'),
-        time: f.get('time'),
-        seats: +f.get('seats'),
-        taken: 0,
-        price: +f.get('price'),
-        driver: profile.name,
-        car: f.get('car') || profile.car,
-        comment: f.get('comment'),
-        status: 'active',
-      });
+      const btn = e.target.querySelector('button');
+      btn.disabled = true;
+      btn.textContent = 'Отправка...';
 
-      DB.set('trips', trips);
-      alert('Поездка опубликована!');
-      location.href = 'index.html';
+      const res = await DB.add('trips', data);
+
+      if (res.ok) {
+        alert('Поездка опубликована!');
+        location.href = 'index.html';
+      } else {
+        alert('Ошибка: ' + (res.error || 'неизвестная'));
+        btn.disabled = false;
+        btn.textContent = 'Опубликовать поездку';
+      }
     });
   </script>
 </body>
