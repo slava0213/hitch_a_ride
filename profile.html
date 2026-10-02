@@ -21,14 +21,7 @@
 
   <main>
     <h2>Мои данные</h2>
-    <form id="profile-form">
-      <label>Имя</label><input name="name" />
-      <label>Email</label><input name="email" type="email" />
-      <label>Телефон</label><input name="phone" />
-      <label>Автомобиль</label><input name="car" />
-      <label>О себе</label><textarea name="about" rows="3"></textarea>
-      <button type="submit">Сохранить</button>
-    </form>
+    <div id="profile-view"><p>Загрузка...</p></div>
 
     <h2>Мои поездки</h2>
     <div id="my-trips"></div>
@@ -44,46 +37,82 @@
 
   <script src="js/storage.js"></script>
   <script>
-    const profile = DB.get('profile');
+    async function loadProfile() {
+      const profiles = await DB.get('profile');
+      const p = Array.isArray(profiles) ? profiles[0] || {} : {};
+      document.getElementById('profile-view').innerHTML = `
+        <div class="card">
+          <p><strong>Имя:</strong> ${p.name || '—'}</p>
+          <p><strong>Email:</strong> ${p.email || '—'}</p>
+          <p><strong>Телефон:</strong> ${p.phone || '—'}</p>
+          <p><strong>Автомобиль:</strong> ${p.car || '—'}</p>
+          <p><strong>О себе:</strong> ${p.about || '—'}</p>
+          <p><strong>Рейтинг:</strong> ⭐ ${p.rating || '—'}</p>
+        </div>`;
+    }
 
-    // Заполняем форму
-    const form = document.getElementById('profile-form');
-    Object.entries(profile).forEach(([k, v]) => {
-      if (form[k]) form[k].value = v;
-    });
+    async function loadMyTrips() {
+      const [trips, profiles] = await Promise.all([
+        DB.get('trips'),
+        DB.get('profile'),
+      ]);
+      if (!Array.isArray(trips)) return;
 
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const f = new FormData(form);
-      const updated = {};
-      for (const [k, v] of f.entries()) updated[k] = v;
-      updated.rating = profile.rating;
-      DB.set('profile', updated);
-      alert('Профиль сохранён!');
-    });
+      const me = Array.isArray(profiles) ? profiles[0]?.name : null;
+      const mine = trips.filter(t => t.driver === me);
 
-    // Мои поездки (где driver = имя профиля)
-    const trips = DB.get('trips').filter(t => t.driver === profile.name);
-    document.getElementById('my-trips').innerHTML = trips.length
-      ? trips.map(t => `<div class="card"><div class="route">${t.from} → ${t.to}</div>
-          <div class="meta">${t.date} · мест: ${t.seats - t.taken}/${t.seats}</div></div>`).join('')
-      : '<p>Пока нет созданных поездок.</p>';
+      document.getElementById('my-trips').innerHTML = mine.length
+        ? mine
+            .map(
+              t => `<div class="card">
+                <div class="route">${t.from} → ${t.to}</div>
+                <div class="meta">${t.date} · мест: ${t.seats - t.taken}/${t.seats}</div>
+              </div>`
+            )
+            .join('')
+        : '<p>Пока нет созданных поездок.</p>';
+    }
 
-    // Мои заявки
-    const apps = DB.get('applications');
-    document.getElementById('my-apps').innerHTML = apps.length
-      ? apps.map(a => {
-          const trip = DB.get('trips').find(t => t.id === a.tripId);
-          return `<div class="card">Заявка на поездку ${trip ? trip.from + ' → ' + trip.to : '—'}
-                  <span class="badge">${a.status}</span></div>`;
-        }).join('')
-      : '<p>Заявок пока нет.</p>';
+    async function loadMyApps() {
+      const [apps, trips] = await Promise.all([
+        DB.get('applications'),
+        DB.get('trips'),
+      ]);
+      if (!Array.isArray(apps)) return;
 
-    // Отзывы
-    const reviews = DB.get('reviews');
-    document.getElementById('reviews').innerHTML = reviews
-      .map(r => `<div class="card"><strong>${r.driver}</strong> — ${'★'.repeat(r.rating)}<p>${r.text}</p></div>`)
-      .join('');
+      document.getElementById('my-apps').innerHTML = apps.length
+        ? apps
+            .map(a => {
+              const t = Array.isArray(trips)
+                ? trips.find(x => String(x.id) === String(a.tripId))
+                : null;
+              return `<div class="card">Заявка на поездку ${
+                t ? t.from + ' → ' + t.to : '—'
+              } <span class="badge">${a.status}</span></div>`;
+            })
+            .join('')
+        : '<p>Заявок пока нет.</p>';
+    }
+
+    async function loadReviews() {
+      const reviews = await DB.get('reviews');
+      if (!Array.isArray(reviews)) return;
+
+      document.getElementById('reviews').innerHTML = reviews.length
+        ? reviews
+            .map(
+              r => `<div class="card"><strong>${r.driver}</strong> — ${'★'.repeat(
+                r.rating
+              )}<p>${r.text}</p></div>`
+            )
+            .join('')
+        : '<p>Отзывов пока нет.</p>';
+    }
+
+    loadProfile();
+    loadMyTrips();
+    loadMyApps();
+    loadReviews();
   </script>
 </body>
 </html>
