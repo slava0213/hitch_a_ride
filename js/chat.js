@@ -1,41 +1,50 @@
 const params = new URLSearchParams(location.search);
-const tripId = Number(params.get('tripId')) || 1;
-
-const trips = DB.get('trips');
-const trip = trips.find(t => t.id === tripId);
-if (trip) {
-  document.getElementById('chat-title').textContent =
-    `Диалог: ${trip.from} → ${trip.to} (${trip.date})`;
-}
+const tripId = params.get('tripId') || '1';
 
 const box = document.getElementById('chat-box');
 
-function renderMessages() {
-  const messages = DB.get('messages').filter(m => m.tripId === tripId);
-  box.innerHTML = messages.map(m => `
+async function renderMessages() {
+  const messages = await DB.get('messages', { tripId });
+
+  if (!Array.isArray(messages)) {
+    box.innerHTML = '<p>Ошибка загрузки сообщений.</p>';
+    return;
+  }
+
+  box.innerHTML = messages
+    .map(
+      m => `
     <div class="msg ${m.user === 'me' ? 'me' : 'them'}">${m.text}</div>
-  `).join('');
+  `
+    )
+    .join('');
   box.scrollTop = box.scrollHeight;
 }
-renderMessages();
 
-document.getElementById('chat-form').addEventListener('submit', e => {
+async function loadTripTitle() {
+  const trips = await DB.get('trips');
+  if (!Array.isArray(trips)) return;
+
+  const trip = trips.find(t => String(t.id) === String(tripId));
+  if (trip) {
+    document.getElementById('chat-title').textContent =
+      `Диалог: ${trip.from} → ${trip.to} (${trip.date})`;
+  }
+}
+
+document.getElementById('chat-form').addEventListener('submit', async e => {
   e.preventDefault();
   const input = e.target.text;
   const text = input.value.trim();
   if (!text) return;
 
-  const messages = DB.get('messages');
-  messages.push({ id: Date.now(), tripId, user: 'me', text });
-  DB.set('messages', messages);
+  await DB.add('messages', { tripId, user: 'me', text });
   input.value = '';
-  renderMessages();
-
-  // Имитация ответа собеседника
-  setTimeout(() => {
-    const m2 = DB.get('messages');
-    m2.push({ id: Date.now() + 1, tripId, user: 'them', text: 'Хорошо, договорились!' });
-    DB.set('messages', m2);
-    renderMessages();
-  }, 1200);
+  await renderMessages();
 });
+
+loadTripTitle();
+renderMessages();
+
+// Автообновление раз в 5 секунд
+setInterval(renderMessages, 5000);
